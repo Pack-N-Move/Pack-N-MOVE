@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Tajawal', sans-serif;
@@ -278,6 +279,7 @@
             .time-slot { padding: 6px 12px; font-size: 0.7rem; }
         }
     </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <!-- شاشة تسجيل الدخول -->
@@ -1188,6 +1190,9 @@ Pack N Move
     loadEmails();
     loadData();
     window.closeModal = closeModal;
+    const supabaseUrl = 'https://ybymelvhoearzyabllts.supabase.co';
+const supabaseKey = 'sb_publishable_nTJvq02LJmTd9kwi5XMS8w_-BHbieaV';
+const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
     function login() {
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
