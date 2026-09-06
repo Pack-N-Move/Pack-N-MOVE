@@ -280,6 +280,66 @@
     </style>
 </head>
 <body>
+    <!-- شاشة تسجيل الدخول -->
+<div id="loginScreen" style="
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:#0a1a2f;
+z-index:99999;
+display:flex;
+justify-content:center;
+align-items:center;
+direction:rtl;
+">
+
+  <div style="
+  background:white;
+  padding:35px;
+  border-radius:15px;
+  width:350px;
+  max-width:90%;
+  text-align:center;
+  box-shadow:0 10px 30px rgba(0,0,0,.3);
+  ">
+
+    <h2 style="margin-bottom:25px;color:#0a1a2f;">
+      🔐 دخول الموظفين
+    </h2>
+
+    <input
+      type="email"
+      id="username"
+      placeholder="البريد الإلكتروني"
+      style="width:100%;padding:12px;margin-bottom:15px;border:1px solid #ccc;border-radius:8px;"
+    >
+
+    <input
+      type="password"
+      id="password"
+      placeholder="كلمة المرور"
+      style="width:100%;padding:12px;margin-bottom:15px;border:1px solid #ccc;border-radius:8px;"
+    >
+
+    <button onclick="login()" style="
+    width:100%;
+    padding:12px;
+    background:#B10622;
+    color:white;
+    border:none;
+    border-radius:8px;
+    font-size:16px;
+    cursor:pointer;
+    ">
+      تسجيل الدخول
+    </button>
+
+    <p id="error" style="color:red;margin-top:15px;"></p>
+
+  </div>
+</div>
 <div class="header">
     <div class="container">
         <div class="logo">باك اند موف <span>Pack & Move</span><small>نظام متكامل - نقل . معاينة . توصيل</small></div>
@@ -1125,6 +1185,20 @@
     loadEmails();
     loadData();
     window.closeModal = closeModal;
+    function login() {
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+    const error = document.getElementById('error');
+
+    // بيانات الدخول
+    if (username === 'admin' && password === '123456') {
+        document.getElementById('loginScreen').style.display = 'none';
+        document.querySelector('.header').style.display = 'block';
+        document.querySelector('.container').style.display = 'block';
+    } else {
+        error.textContent = 'اسم المستخدم أو كلمة المرور غير صحيحة';
+    }
+}
 </script>
 </body>
 </html>
