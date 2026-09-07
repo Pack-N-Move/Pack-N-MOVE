@@ -9,7 +9,7 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* ===== نفس الـ CSS السابق ===== */
+        /* ===== CSS (نفس الكود السابق) ===== */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Tajawal', sans-serif;
@@ -246,6 +246,7 @@
         }
         button:hover { background: #B10622; }
         .btn-excel { background: #1e6f3f; }
+        .btn-excel:hover { background: #15803d; }
         .btn-danger { background: #dc2626; }
         .btn-danger:hover { background: #b91c1c; }
         .btn-warning { background: #eab308; color: #0f172a; }
@@ -724,7 +725,10 @@
                 }
             }
         });
-        document.getElementById('syncStatus').textContent = show ? 'جاري المزامنة...' : 'متصل';
+        const syncStatus = document.getElementById('syncStatus');
+        if (syncStatus) {
+            syncStatus.textContent = show ? 'جاري المزامنة...' : 'متصل';
+        }
     }
 
     // =============================================================
@@ -733,31 +737,36 @@
 
     // ---- Moving Bookings ----
     async function loadMovingBookings() {
-        const { data, error } = await supabase
-            .from('moving_bookings')
-            .select('*')
-            .order('created_at', { ascending: false });
-        if (error) {
-            console.error('Error loading moving bookings:', error);
+        try {
+            const { data, error } = await supabase
+                .from('moving_bookings')
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (error) {
+                console.error('Error loading moving bookings:', error);
+                return [];
+            }
+            return (data || []).map(row => ({
+                id: row.id,
+                clientName: row.client_name || '',
+                phone: row.phone || '',
+                email: row.email || '',
+                fromArea: row.from_area || '',
+                toArea: row.to_area || '',
+                date: row.date || '',
+                timeSlot: row.time_slot || '',
+                numDroops: row.num_droops || '1',
+                truck: row.truck || '',
+                status: row.status || 'pending',
+                notes: row.notes || '',
+                pricePerDrop: row.price_per_drop || '0',
+                totalPrice: row.total_price || '0',
+                modifyHistory: row.modify_history || ''
+            }));
+        } catch (e) {
+            console.error('loadMovingBookings error:', e);
             return [];
         }
-        return data.map(row => ({
-            id: row.id,
-            clientName: row.client_name,
-            phone: row.phone,
-            email: row.email || '',
-            fromArea: row.from_area,
-            toArea: row.to_area,
-            date: row.date,
-            timeSlot: row.time_slot,
-            numDroops: row.num_droops,
-            truck: row.truck,
-            status: row.status,
-            notes: row.notes || '',
-            pricePerDrop: row.price_per_drop,
-            totalPrice: row.total_price,
-            modifyHistory: row.modify_history || ''
-        }));
     }
 
     async function saveMovingBookingToSupabase(booking) {
@@ -765,19 +774,19 @@
             .from('moving_bookings')
             .upsert({
                 id: booking.id || Date.now().toString(),
-                client_name: booking.clientName,
-                phone: booking.phone,
+                client_name: booking.clientName || '',
+                phone: booking.phone || '',
                 email: booking.email || '',
-                from_area: booking.fromArea,
-                to_area: booking.toArea,
-                date: booking.date,
-                time_slot: booking.timeSlot,
-                num_droops: booking.numDroops,
-                truck: booking.truck,
-                status: booking.status,
+                from_area: booking.fromArea || '',
+                to_area: booking.toArea || '',
+                date: booking.date || '',
+                time_slot: booking.timeSlot || '',
+                num_droops: booking.numDroops || '1',
+                truck: booking.truck || '',
+                status: booking.status || 'pending',
                 notes: booking.notes || '',
-                price_per_drop: booking.pricePerDrop,
-                total_price: booking.totalPrice,
+                price_per_drop: booking.pricePerDrop || '0',
+                total_price: booking.totalPrice || '0',
                 modify_history: booking.modifyHistory || '',
                 created_at: new Date().toISOString()
             }, { onConflict: 'id' });
@@ -794,24 +803,29 @@
 
     // ---- Survey Bookings ----
     async function loadSurveyBookings() {
-        const { data, error } = await supabase
-            .from('survey_bookings')
-            .select('*')
-            .order('created_at', { ascending: false });
-        if (error) {
-            console.error('Error loading survey bookings:', error);
+        try {
+            const { data, error } = await supabase
+                .from('survey_bookings')
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (error) {
+                console.error('Error loading survey bookings:', error);
+                return [];
+            }
+            return (data || []).map(row => ({
+                id: row.id,
+                clientName: row.client_name || '',
+                phone: row.phone || '',
+                email: row.email || '',
+                address: row.address || '',
+                date: row.date || '',
+                timeSlot: row.time_slot || '',
+                notes: row.notes || ''
+            }));
+        } catch (e) {
+            console.error('loadSurveyBookings error:', e);
             return [];
         }
-        return data.map(row => ({
-            id: row.id,
-            clientName: row.client_name,
-            phone: row.phone,
-            email: row.email || '',
-            address: row.address,
-            date: row.date,
-            timeSlot: row.time_slot,
-            notes: row.notes || ''
-        }));
     }
 
     async function saveSurveyBookingToSupabase(booking) {
@@ -819,12 +833,12 @@
             .from('survey_bookings')
             .upsert({
                 id: booking.id || Date.now().toString(),
-                client_name: booking.clientName,
-                phone: booking.phone,
+                client_name: booking.clientName || '',
+                phone: booking.phone || '',
                 email: booking.email || '',
-                address: booking.address,
-                date: booking.date,
-                time_slot: booking.timeSlot,
+                address: booking.address || '',
+                date: booking.date || '',
+                time_slot: booking.timeSlot || '',
                 notes: booking.notes || '',
                 created_at: new Date().toISOString()
             }, { onConflict: 'id' });
@@ -841,24 +855,29 @@
 
     // ---- Delivery Bookings ----
     async function loadDeliveryBookings() {
-        const { data, error } = await supabase
-            .from('delivery_bookings')
-            .select('*')
-            .order('created_at', { ascending: false });
-        if (error) {
-            console.error('Error loading delivery bookings:', error);
+        try {
+            const { data, error } = await supabase
+                .from('delivery_bookings')
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (error) {
+                console.error('Error loading delivery bookings:', error);
+                return [];
+            }
+            return (data || []).map(row => ({
+                id: row.id,
+                clientName: row.client_name || '',
+                phone: row.phone || '',
+                email: row.email || '',
+                address: row.address || '',
+                date: row.date || '',
+                timeSlot: row.time_slot || '',
+                notes: row.notes || ''
+            }));
+        } catch (e) {
+            console.error('loadDeliveryBookings error:', e);
             return [];
         }
-        return data.map(row => ({
-            id: row.id,
-            clientName: row.client_name,
-            phone: row.phone,
-            email: row.email || '',
-            address: row.address,
-            date: row.date,
-            timeSlot: row.time_slot,
-            notes: row.notes || ''
-        }));
     }
 
     async function saveDeliveryBookingToSupabase(booking) {
@@ -866,12 +885,12 @@
             .from('delivery_bookings')
             .upsert({
                 id: booking.id || Date.now().toString(),
-                client_name: booking.clientName,
-                phone: booking.phone,
+                client_name: booking.clientName || '',
+                phone: booking.phone || '',
                 email: booking.email || '',
-                address: booking.address,
-                date: booking.date,
-                time_slot: booking.timeSlot,
+                address: booking.address || '',
+                date: booking.date || '',
+                time_slot: booking.timeSlot || '',
                 notes: booking.notes || '',
                 created_at: new Date().toISOString()
             }, { onConflict: 'id' });
@@ -888,14 +907,19 @@
 
     // ---- Trucks Off ----
     async function loadTrucksOff() {
-        const { data, error } = await supabase
-            .from('trucks_off')
-            .select('truck');
-        if (error) {
-            console.error('Error loading trucks off:', error);
+        try {
+            const { data, error } = await supabase
+                .from('trucks_off')
+                .select('truck');
+            if (error) {
+                console.error('Error loading trucks off:', error);
+                return [];
+            }
+            return (data || []).map(row => row.truck).filter(Boolean);
+        } catch (e) {
+            console.error('loadTrucksOff error:', e);
             return [];
         }
-        return data.map(row => row.truck);
     }
 
     async function saveTrucksOffToSupabase(trucks) {
@@ -905,7 +929,7 @@
             .neq('truck', '');
         if (deleteError) throw deleteError;
 
-        if (trucks.length > 0) {
+        if (trucks && trucks.length > 0) {
             const { error: insertError } = await supabase
                 .from('trucks_off')
                 .insert(trucks.map(truck => ({ truck })));
@@ -915,14 +939,19 @@
 
     // ---- Email List ----
     async function loadEmailList() {
-        const { data, error } = await supabase
-            .from('email_list')
-            .select('email');
-        if (error) {
-            console.error('Error loading email list:', error);
+        try {
+            const { data, error } = await supabase
+                .from('email_list')
+                .select('email');
+            if (error) {
+                console.error('Error loading email list:', error);
+                return [];
+            }
+            return (data || []).map(row => row.email).filter(Boolean);
+        } catch (e) {
+            console.error('loadEmailList error:', e);
             return [];
         }
-        return data.map(row => row.email);
     }
 
     async function saveEmailToSupabase(email) {
@@ -954,16 +983,24 @@
                 loadTrucksOff(),
                 loadEmailList()
             ]);
-            movingBookings = moving;
-            surveyBookings = survey;
-            deliveryBookings = delivery;
-            trucksOff = trucksOffData;
-            emailList = emails;
+            movingBookings = moving || [];
+            surveyBookings = survey || [];
+            deliveryBookings = delivery || [];
+            trucksOff = trucksOffData || [];
+            emailList = emails || [];
             renderAll();
             renderEmailList();
         } catch (error) {
             console.error('Error loading data:', error);
-            alert('❌ فشل تحميل البيانات من Supabase: ' + error.message);
+            // عدم عرض رسالة خطأ للمستخدم في حالة عدم وجود جداول
+            // فقط نبدأ ببيانات فارغة
+            movingBookings = [];
+            surveyBookings = [];
+            deliveryBookings = [];
+            trucksOff = [];
+            emailList = [];
+            renderAll();
+            renderEmailList();
         } finally {
             showLoading(false);
         }
