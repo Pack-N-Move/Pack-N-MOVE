@@ -25,14 +25,21 @@
         .toast.error { background: #dc2626; }
         .toast.info { background: #0a1a2f; }
         .loading { background: #eab308; color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; }
+        .refresh-btn { background: #0a1a2f; }
+        .refresh-btn:hover { background: #1e3a5f; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
         <h1>🚛 باك اند موف</h1>
-        <span id="syncStatus" class="loading"><i class="fas fa-sync-alt fa-spin"></i> جاري المزامنة...</span>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <span id="syncStatus" class="loading"><i class="fas fa-sync-alt fa-spin"></i> جاري المزامنة...</span>
+            <button onclick="loadFromSheet()" class="refresh-btn" style="padding:8px 16px; font-size:0.8rem;">
+                <i class="fas fa-sync-alt"></i> تحديث
+            </button>
+        </div>
     </div>
 
     <div class="card">
@@ -40,13 +47,16 @@
         <div class="row">
             <input type="text" id="clientName" placeholder="اسم العميل *" />
             <input type="text" id="phone" placeholder="رقم الجوال *" />
+            <input type="email" id="email" placeholder="البريد الإلكتروني (اختياري)" />
             <select id="fromArea"><option value="">من *</option>
                 <option>السالمية</option><option>حولي</option><option>بيان</option>
                 <option>مشرف</option><option>الرقة</option><option>الفحيحيل</option>
+                <option>المنقف</option><option>أبو حليفة</option>
             </select>
             <select id="toArea"><option value="">إلى *</option>
                 <option>السالمية</option><option>حولي</option><option>بيان</option>
                 <option>مشرف</option><option>الرقة</option><option>الفحيحيل</option>
+                <option>المنقف</option><option>أبو حليفة</option>
             </select>
             <input type="date" id="moveDate" />
             <select id="timeSlot"><option value="صباحاً">صباحاً</option><option value="مساءً">مساءً</option></select>
@@ -79,16 +89,17 @@
         <div style="overflow-x:auto;">
             <table>
                 <thead><tr>
-                    <th>#</th><th>العميل</th><th>الجوال</th><th>من</th><th>إلى</th>
+                    <th>#</th><th>العميل</th><th>الجوال</th><th>البريد</th><th>من</th><th>إلى</th>
                     <th>التاريخ</th><th>الموعد</th><th>السيارة</th><th>الحالة</th>
                     <th>إجراءات</th>
                 </tr></thead>
                 <tbody id="bookingsTable"></tbody>
             </table>
         </div>
-        <div style="margin-top:10px;">
+        <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
             <button onclick="exportToExcel()" style="background:#1e6f3f;"><i class="fas fa-file-excel"></i> تصدير Excel</button>
             <button onclick="loadFromSheet()" style="background:#0a1a2f;"><i class="fas fa-sync-alt"></i> تحديث من الجدول</button>
+            <button onclick="exportToCSV()" style="background:#b10622;"><i class="fas fa-download"></i> تحميل CSV</button>
         </div>
     </div>
 </div>
@@ -97,12 +108,11 @@
 
 <script>
     // ============================================================
-    // 1. CONFIGURATION - ضع Sheet ID الخاص بك هنا
+    // 1. CONFIGURATION
     // ============================================================
 
     const SHEET_ID = '1Sbyre78WD7XmuNAzxUrNYZN_88xSyPinw0OiX7ocH5g';
-const SHEET_NAME = 'Moving';
-    const API_KEY = ''; // إذا كان الجدول عاماً، اتركه فارغاً
+    const SHEET_NAME = 'Moving';
 
     // ============================================================
     // 2. STATE
@@ -112,7 +122,7 @@ const SHEET_NAME = 'Moving';
     let isLoading = false;
 
     // ============================================================
-    // 3. TOAST NOTIFICATION
+    // 3. TOAST
     // ============================================================
 
     function showToast(message, type = 'info') {
@@ -139,10 +149,9 @@ const SHEET_NAME = 'Moving';
     }
 
     // ============================================================
-    // 4. GOOGLE SHEETS API
+    // 4. GOOGLE SHEETS - قراءة البيانات
     // ============================================================
 
-    // قراءة البيانات من Google Sheets
     async function loadFromSheet() {
         try {
             setLoading(true);
@@ -150,20 +159,17 @@ const SHEET_NAME = 'Moving';
             const response = await fetch(url);
             const csvText = await response.text();
             
-            // تحويل CSV إلى JSON
             const rows = csvText.split('\n').filter(row => row.trim() !== '');
             if (rows.length < 2) {
                 bookings = [];
                 renderTable();
-                showToast('⚠️ الجدول فارغ أو لا يحتوي على بيانات', 'info');
+                showToast('⚠️ الجدول فارغ', 'info');
                 setLoading(false);
                 return;
             }
 
-            // قراءة العناوين
             const headers = rows[0].split(',').map(h => h.replace(/"/g, '').trim());
             
-            // قراءة البيانات
             bookings = [];
             for (let i = 1; i < rows.length; i++) {
                 const values = rows[i].split(',').map(v => v.replace(/"/g, '').trim());
@@ -172,73 +178,56 @@ const SHEET_NAME = 'Moving';
                     headers.forEach((h, idx) => {
                         obj[h] = values[idx] || '';
                     });
-                    // تحويل المعرف إلى رقم
                     obj.id = parseInt(obj.id) || Date.now() + i;
                     bookings.push(obj);
                 }
             }
 
             renderTable();
-            showToast(`✅ تم تحميل ${bookings.length} حجز من Google Sheets`, 'success');
+            showToast(`✅ تم تحميل ${bookings.length} حجز`, 'success');
         } catch (error) {
-            console.error('Error loading from sheet:', error);
-            showToast('❌ فشل تحميل البيانات: ' + error.message, 'error');
-            // في حالة الفشل، استخدم localStorage
-            loadFromLocal();
+            console.error('Error:', error);
+            showToast('❌ فشل التحميل: ' + error.message, 'error');
         } finally {
             setLoading(false);
         }
     }
 
-    // حفظ البيانات إلى Google Sheets (عن طريق تنزيل CSV وتحميله يدوياً)
-    function exportToSheet() {
+    // ============================================================
+    // 5. GOOGLE SHEETS - حفظ البيانات (عن طريق CSV)
+    // ============================================================
+
+    function exportToCSV() {
         if (bookings.length === 0) {
-            showToast('⚠️ لا توجد بيانات للحفظ', 'info');
+            showToast('⚠️ لا توجد بيانات', 'info');
             return;
         }
 
-        // تحويل البيانات إلى CSV
-        const headers = ['id', 'clientName', 'phone', 'fromArea', 'toArea', 'date', 'timeSlot', 'numDroops', 'truck', 'status', 'notes', 'pricePerDrop', 'totalPrice', 'modifyHistory'];
+        const headers = ['id', 'clientName', 'phone', 'email', 'fromArea', 'toArea', 'date', 'timeSlot', 'numDroops', 'truck', 'status', 'notes', 'pricePerDrop', 'totalPrice', 'modifyHistory'];
         let csv = headers.join(',') + '\n';
         
         bookings.forEach(b => {
             const row = headers.map(h => {
                 let val = b[h] || '';
-                if (typeof val === 'string' && val.includes(',')) {
-                    val = `"${val}"`;
+                if (typeof val === 'string' && (val.includes(',') || val.includes('"'))) {
+                    val = `"${val.replace(/"/g, '""')}"`;
                 }
                 return val;
             });
             csv += row.join(',') + '\n';
         });
 
-        // تحميل الملف
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = `bookings_${new Date().toISOString().slice(0,10)}.csv`;
         link.click();
         
-        showToast('✅ تم تصدير البيانات. قم برفعها يدوياً إلى Google Sheets', 'success');
+        showToast('✅ تم تحميل CSV. ارفعه إلى Google Sheets لمشاركته', 'success');
     }
 
     // ============================================================
-    // 5. LOCAL STORAGE (نسخة احتياطية)
-    // ============================================================
-
-    function saveToLocal() {
-        localStorage.setItem('packmove_bookings', JSON.stringify(bookings));
-    }
-
-    function loadFromLocal() {
-        const saved = localStorage.getItem('packmove_bookings');
-        bookings = saved ? JSON.parse(saved) : [];
-        renderTable();
-        showToast(`📂 تم تحميل ${bookings.length} حجز من التخزين المحلي`, 'info');
-    }
-
-    // ============================================================
-    // 6. CRUD OPERATIONS
+    // 6. CRUD - إضافة وحذف
     // ============================================================
 
     function addBooking() {
@@ -246,6 +235,7 @@ const SHEET_NAME = 'Moving';
         
         const clientName = document.getElementById('clientName').value.trim();
         const phone = document.getElementById('phone').value.trim();
+        const email = document.getElementById('email').value.trim();
         const fromArea = document.getElementById('fromArea').value;
         const toArea = document.getElementById('toArea').value;
         const date = document.getElementById('moveDate').value;
@@ -264,6 +254,7 @@ const SHEET_NAME = 'Moving';
             id: Date.now(),
             clientName,
             phone,
+            email,
             fromArea,
             toArea,
             date,
@@ -278,21 +269,25 @@ const SHEET_NAME = 'Moving';
         };
 
         bookings.unshift(newBooking);
-        saveToLocal();
         renderTable();
         showToast('✅ تم إضافة الحجز بنجاح', 'success');
         
+        // تنظيف الحقول
         document.getElementById('clientName').value = '';
         document.getElementById('phone').value = '';
+        document.getElementById('email').value = '';
         document.getElementById('moveDate').value = '';
+        
+        // حفظ في localStorage كنسخة احتياطية محلية
+        localStorage.setItem('packmove_bookings', JSON.stringify(bookings));
     }
 
     function deleteBooking(id) {
         if (isLoading) return;
         if (!confirm('هل أنت متأكد من الحذف؟')) return;
         bookings = bookings.filter(b => b.id !== id);
-        saveToLocal();
         renderTable();
+        localStorage.setItem('packmove_bookings', JSON.stringify(bookings));
         showToast('✅ تم الحذف', 'success');
     }
 
@@ -305,7 +300,7 @@ const SHEET_NAME = 'Moving';
         tbody.innerHTML = '';
         
         if (bookings.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="10" style="padding:20px;color:#64748b;">لا توجد حجوزات</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;color:#64748b;">لا توجد حجوزات</td></tr>';
             return;
         }
 
@@ -322,6 +317,7 @@ const SHEET_NAME = 'Moving';
                 <td>${idx + 1}</td>
                 <td>${b.clientName || ''}</td>
                 <td>${b.phone || ''}</td>
+                <td>${b.email || ''}</td>
                 <td>${b.fromArea || ''}</td>
                 <td>${b.toArea || ''}</td>
                 <td>${b.date || ''}</td>
@@ -351,13 +347,14 @@ const SHEET_NAME = 'Moving';
 
     function exportToExcel() {
         if (bookings.length === 0) {
-            showToast('⚠️ لا توجد بيانات للتصدير', 'info');
+            showToast('⚠️ لا توجد بيانات', 'info');
             return;
         }
         const exportData = bookings.map(b => ({
             'الرقم': bookings.indexOf(b) + 1,
             'اسم العميل': b.clientName || '',
             'رقم الجوال': b.phone || '',
+            'البريد الإلكتروني': b.email || '',
             'من': b.fromArea || '',
             'إلى': b.toArea || '',
             'التاريخ': b.date || '',
@@ -375,7 +372,20 @@ const SHEET_NAME = 'Moving';
     }
 
     // ============================================================
-    // 8. EVENT BINDING
+    // 8. LOAD FROM LOCAL (نسخة احتياطية)
+    // ============================================================
+
+    function loadFromLocal() {
+        const saved = localStorage.getItem('packmove_bookings');
+        if (saved) {
+            bookings = JSON.parse(saved);
+            renderTable();
+            showToast(`📂 تم تحميل ${bookings.length} حجز من التخزين المحلي`, 'info');
+        }
+    }
+
+    // ============================================================
+    // 9. EVENT BINDING
     // ============================================================
 
     document.querySelectorAll('#fromArea, #toArea, #numDroops').forEach(el => {
@@ -383,17 +393,17 @@ const SHEET_NAME = 'Moving';
     });
 
     // ============================================================
-    // 9. INIT
+    // 10. INIT
     // ============================================================
 
     async function init() {
         console.log('🚀 Pack & Move with Google Sheets');
         console.log(`📊 Sheet ID: ${SHEET_ID}`);
         
-        // محاولة تحميل من Google Sheets
+        // أولاً: نحاول التحميل من Google Sheets
         await loadFromSheet();
         
-        // إذا لم تكن هناك بيانات، حاول من localStorage
+        // لو مفيش بيانات، نجيب من localStorage
         if (bookings.length === 0) {
             loadFromLocal();
         }
@@ -407,9 +417,8 @@ const SHEET_NAME = 'Moving';
     window.deleteBooking = deleteBooking;
     window.loadFromSheet = loadFromSheet;
     window.exportToExcel = exportToExcel;
-    window.exportToSheet = exportToSheet;
+    window.exportToCSV = exportToCSV;
 
-    // بدء التشغيل
     document.addEventListener('DOMContentLoaded', init);
 </script>
 
