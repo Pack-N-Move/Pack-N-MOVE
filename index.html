@@ -24,8 +24,9 @@
         .toast.success { background: #16a34a; }
         .toast.error { background: #dc2626; }
         .toast.info { background: #0a1a2f; }
-        .loading { background: #eab308; color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; }
-        .refresh-btn { background: #0a1a2f; }
+        .loading { background: #eab308; color: white; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; display: inline-block; }
+        .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+        .refresh-btn { background: #0a1a2f; padding: 8px 16px; font-size: 0.8rem; border-radius: 20px; border: none; color: white; cursor: pointer; }
         .refresh-btn:hover { background: #1e3a5f; }
     </style>
 </head>
@@ -34,11 +35,12 @@
 <div class="container">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;">
         <h1>🚛 باك اند موف</h1>
-        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <div class="header-actions">
             <span id="syncStatus" class="loading"><i class="fas fa-sync-alt fa-spin"></i> جاري المزامنة...</span>
-            <button onclick="loadFromSheet()" class="refresh-btn" style="padding:8px 16px; font-size:0.8rem;">
+            <button onclick="loadFromSheet()" class="refresh-btn">
                 <i class="fas fa-sync-alt"></i> تحديث
             </button>
+            <span style="font-size:0.8rem; color:#64748b;" id="lastUpdate">آخر تحديث: --</span>
         </div>
     </div>
 
@@ -85,7 +87,7 @@
     </div>
 
     <div class="card">
-        <h3>📋 جميع الحجوزات</h3>
+        <h3>📋 جميع الحجوزات <span id="bookingCount" style="font-size:0.8rem;color:#64748b;"></span></h3>
         <div style="overflow-x:auto;">
             <table>
                 <thead><tr>
@@ -140,7 +142,7 @@
         isLoading = loading;
         const status = document.getElementById('syncStatus');
         if (loading) {
-            status.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> جاري المزامنة...';
+            status.innerHTML = '<i class="fas fa-sync-alt fa-spin"></i> جاري التحميل...';
             status.style.background = '#eab308';
         } else {
             status.innerHTML = '<i class="fas fa-check-circle"></i> متزامن';
@@ -149,7 +151,7 @@
     }
 
     // ============================================================
-    // 4. GOOGLE SHEETS - قراءة البيانات
+    // 4. GOOGLE SHEETS - قراءة البيانات (مباشرة من الجدول)
     // ============================================================
 
     async function loadFromSheet() {
@@ -184,7 +186,8 @@
             }
 
             renderTable();
-            showToast(`✅ تم تحميل ${bookings.length} حجز`, 'success');
+            document.getElementById('lastUpdate').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar-KW')}`;
+            showToast(`✅ تم تحميل ${bookings.length} حجز من Google Sheets`, 'success');
         } catch (error) {
             console.error('Error:', error);
             showToast('❌ فشل التحميل: ' + error.message, 'error');
@@ -194,7 +197,7 @@
     }
 
     // ============================================================
-    // 5. GOOGLE SHEETS - حفظ البيانات (عن طريق CSV)
+    // 5. حفظ البيانات في Google Sheets (عن طريق تحميل CSV)
     // ============================================================
 
     function exportToCSV() {
@@ -227,7 +230,7 @@
     }
 
     // ============================================================
-    // 6. CRUD - إضافة وحذف
+    // 6. CRUD - إضافة وحذف (مع حفظ محلي)
     // ============================================================
 
     function addBooking() {
@@ -272,13 +275,12 @@
         renderTable();
         showToast('✅ تم إضافة الحجز بنجاح', 'success');
         
-        // تنظيف الحقول
         document.getElementById('clientName').value = '';
         document.getElementById('phone').value = '';
         document.getElementById('email').value = '';
         document.getElementById('moveDate').value = '';
         
-        // حفظ في localStorage كنسخة احتياطية محلية
+        // حفظ في localStorage كنسخة احتياطية
         localStorage.setItem('packmove_bookings', JSON.stringify(bookings));
     }
 
@@ -301,8 +303,11 @@
         
         if (bookings.length === 0) {
             tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;color:#64748b;">لا توجد حجوزات</td></tr>';
+            document.getElementById('bookingCount').textContent = '(0)';
             return;
         }
+
+        document.getElementById('bookingCount').textContent = `(${bookings.length})`;
 
         bookings.forEach((b, idx) => {
             const row = document.createElement('tr');
@@ -385,7 +390,20 @@
     }
 
     // ============================================================
-    // 9. EVENT BINDING
+    // 9. AUTO REFRESH (كل 30 ثانية)
+    // ============================================================
+
+    let autoRefreshInterval = null;
+
+    function startAutoRefresh() {
+        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        autoRefreshInterval = setInterval(() => {
+            loadFromSheet();
+        }, 30000); // 30 ثانية
+    }
+
+    // ============================================================
+    // 10. EVENT BINDING
     // ============================================================
 
     document.querySelectorAll('#fromArea, #toArea, #numDroops').forEach(el => {
@@ -393,14 +411,14 @@
     });
 
     // ============================================================
-    // 10. INIT
+    // 11. INIT
     // ============================================================
 
     async function init() {
         console.log('🚀 Pack & Move with Google Sheets');
         console.log(`📊 Sheet ID: ${SHEET_ID}`);
         
-        // أولاً: نحاول التحميل من Google Sheets
+        // تحميل البيانات من Google Sheets
         await loadFromSheet();
         
         // لو مفيش بيانات، نجيب من localStorage
@@ -410,6 +428,11 @@
         
         // تعيين التاريخ الحالي
         document.getElementById('moveDate').value = new Date().toISOString().slice(0, 10);
+        
+        // بدء التحديث التلقائي كل 30 ثانية
+        startAutoRefresh();
+        
+        console.log('✅ النظام جاهز! التحديث التلقائي كل 30 ثانية');
     }
 
     // جعل الدوال متاحة عالمياً
