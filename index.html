@@ -28,6 +28,7 @@
         .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         .refresh-btn { background: #0a1a2f; padding: 8px 16px; font-size: 0.8rem; border-radius: 20px; border: none; color: white; cursor: pointer; }
         .refresh-btn:hover { background: #1e3a5f; }
+        .count-badge { background: #e2e8f0; padding: 2px 12px; border-radius: 20px; font-size: 0.8rem; color: #0f172a; }
     </style>
 </head>
 <body>
@@ -87,7 +88,7 @@
     </div>
 
     <div class="card">
-        <h3>📋 جميع الحجوزات <span id="bookingCount" style="font-size:0.8rem;color:#64748b;"></span></h3>
+        <h3>📋 جميع الحجوزات <span class="count-badge" id="bookingCount">0</span></h3>
         <div style="overflow-x:auto;">
             <table>
                 <thead><tr>
@@ -102,6 +103,7 @@
             <button onclick="exportToExcel()" style="background:#1e6f3f;"><i class="fas fa-file-excel"></i> تصدير Excel</button>
             <button onclick="loadFromSheet()" style="background:#0a1a2f;"><i class="fas fa-sync-alt"></i> تحديث من الجدول</button>
             <button onclick="exportToCSV()" style="background:#b10622;"><i class="fas fa-download"></i> تحميل CSV</button>
+            <button onclick="syncToSheet()" style="background:#16a34a;"><i class="fas fa-upload"></i> حفظ في الجدول</button>
         </div>
     </div>
 </div>
@@ -151,7 +153,7 @@
     }
 
     // ============================================================
-    // 4. GOOGLE SHEETS - قراءة البيانات (مباشرة من الجدول)
+    // 4. GOOGLE SHEETS - قراءة البيانات
     // ============================================================
 
     async function loadFromSheet() {
@@ -187,17 +189,19 @@
 
             renderTable();
             document.getElementById('lastUpdate').textContent = `آخر تحديث: ${new Date().toLocaleTimeString('ar-KW')}`;
-            showToast(`✅ تم تحميل ${bookings.length} حجز من Google Sheets`, 'success');
+            showToast(`✅ تم تحميل ${bookings.length} حجز`, 'success');
         } catch (error) {
             console.error('Error:', error);
             showToast('❌ فشل التحميل: ' + error.message, 'error');
+            // لو فشل التحميل، نجيب من localStorage
+            loadFromLocal();
         } finally {
             setLoading(false);
         }
     }
 
     // ============================================================
-    // 5. حفظ البيانات في Google Sheets (عن طريق تحميل CSV)
+    // 5. حفظ البيانات في Google Sheets (عن طريق CSV)
     // ============================================================
 
     function exportToCSV() {
@@ -226,11 +230,26 @@
         link.download = `bookings_${new Date().toISOString().slice(0,10)}.csv`;
         link.click();
         
-        showToast('✅ تم تحميل CSV. ارفعه إلى Google Sheets لمشاركته', 'success');
+        showToast('✅ تم تحميل CSV', 'success');
     }
 
     // ============================================================
-    // 6. CRUD - إضافة وحذف (مع حفظ محلي)
+    // 6. حفظ البيانات في Google Sheets (يدوياً)
+    // ============================================================
+
+    function syncToSheet() {
+        if (bookings.length === 0) {
+            showToast('⚠️ لا توجد بيانات للحفظ', 'info');
+            return;
+        }
+        
+        // نفس وظيفة exportToCSV ولكن بنفس الاسم
+        exportToCSV();
+        showToast('📤 قم برفع ملف CSV إلى Google Sheets يدوياً', 'info');
+    }
+
+    // ============================================================
+    // 7. CRUD - إضافة وحذف
     // ============================================================
 
     function addBooking() {
@@ -273,15 +292,17 @@
 
         bookings.unshift(newBooking);
         renderTable();
+        
+        // حفظ في localStorage
+        localStorage.setItem('packmove_bookings', JSON.stringify(bookings));
+        
         showToast('✅ تم إضافة الحجز بنجاح', 'success');
         
+        // تنظيف الحقول
         document.getElementById('clientName').value = '';
         document.getElementById('phone').value = '';
         document.getElementById('email').value = '';
         document.getElementById('moveDate').value = '';
-        
-        // حفظ في localStorage كنسخة احتياطية
-        localStorage.setItem('packmove_bookings', JSON.stringify(bookings));
     }
 
     function deleteBooking(id) {
@@ -294,7 +315,7 @@
     }
 
     // ============================================================
-    // 7. RENDER
+    // 8. RENDER
     // ============================================================
 
     function renderTable() {
@@ -303,11 +324,11 @@
         
         if (bookings.length === 0) {
             tbody.innerHTML = '<tr><td colspan="11" style="padding:20px;color:#64748b;">لا توجد حجوزات</td></tr>';
-            document.getElementById('bookingCount').textContent = '(0)';
+            document.getElementById('bookingCount').textContent = '0';
             return;
         }
 
-        document.getElementById('bookingCount').textContent = `(${bookings.length})`;
+        document.getElementById('bookingCount').textContent = bookings.length;
 
         bookings.forEach((b, idx) => {
             const row = document.createElement('tr');
@@ -377,7 +398,7 @@
     }
 
     // ============================================================
-    // 8. LOAD FROM LOCAL (نسخة احتياطية)
+    // 9. LOAD FROM LOCAL (نسخة احتياطية)
     // ============================================================
 
     function loadFromLocal() {
@@ -390,7 +411,7 @@
     }
 
     // ============================================================
-    // 9. AUTO REFRESH (كل 30 ثانية)
+    // 10. AUTO REFRESH (كل 30 ثانية)
     // ============================================================
 
     let autoRefreshInterval = null;
@@ -399,11 +420,11 @@
         if (autoRefreshInterval) clearInterval(autoRefreshInterval);
         autoRefreshInterval = setInterval(() => {
             loadFromSheet();
-        }, 30000); // 30 ثانية
+        }, 30000);
     }
 
     // ============================================================
-    // 10. EVENT BINDING
+    // 11. EVENT BINDING
     // ============================================================
 
     document.querySelectorAll('#fromArea, #toArea, #numDroops').forEach(el => {
@@ -411,25 +432,20 @@
     });
 
     // ============================================================
-    // 11. INIT
+    // 12. INIT
     // ============================================================
 
     async function init() {
         console.log('🚀 Pack & Move with Google Sheets');
         console.log(`📊 Sheet ID: ${SHEET_ID}`);
         
-        // تحميل البيانات من Google Sheets
         await loadFromSheet();
         
-        // لو مفيش بيانات، نجيب من localStorage
         if (bookings.length === 0) {
             loadFromLocal();
         }
         
-        // تعيين التاريخ الحالي
         document.getElementById('moveDate').value = new Date().toISOString().slice(0, 10);
-        
-        // بدء التحديث التلقائي كل 30 ثانية
         startAutoRefresh();
         
         console.log('✅ النظام جاهز! التحديث التلقائي كل 30 ثانية');
@@ -441,6 +457,7 @@
     window.loadFromSheet = loadFromSheet;
     window.exportToExcel = exportToExcel;
     window.exportToCSV = exportToCSV;
+    window.syncToSheet = syncToSheet;
 
     document.addEventListener('DOMContentLoaded', init);
 </script>
